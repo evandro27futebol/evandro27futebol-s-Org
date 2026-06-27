@@ -1,0 +1,6 @@
+{
+  "name": "Faceless AI",
+  "description": "Crie vídeos faceless automáticos com narração, imagens sincronizadas, legendas e efeito Ken Burns.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
