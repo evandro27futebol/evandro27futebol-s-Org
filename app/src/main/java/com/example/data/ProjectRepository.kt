@@ -109,12 +109,24 @@ class ProjectRepository(private val db: AppDatabase) {
             // Fetch all library images for smart matching
             val allLibraryImages = db.userImageDao().getAllImagesSync()
 
-            var currentTimeMs = 0L
-            val scenesToInsert = sceneDataList.map { data ->
-                val durationSec = customTemplate?.defaultSceneDurationSeconds ?: data.durationSeconds
-                val durationMs = durationSec * 1000L
-                val endMs = currentTimeMs + durationMs
+            val totalRawSec = sceneDataList.sumOf { customTemplate?.defaultSceneDurationSeconds ?: it.durationSeconds }
+            val totalRawMs = if (totalRawSec > 0) totalRawSec * 1000L else 1L
 
+            var currentTimeMs = 0L
+            val scenesToInsert = sceneDataList.mapIndexed { index, data ->
+                val rawDurationMs = (customTemplate?.defaultSceneDurationSeconds ?: data.durationSeconds) * 1000L
+                val durationMs = if (audioDurationMs > 0) {
+                    if (index == sceneDataList.lastIndex) {
+                        (audioDurationMs - currentTimeMs).coerceAtLeast(1000L)
+                    } else {
+                        val calculated = (rawDurationMs.toDouble() / totalRawMs * audioDurationMs).toLong()
+                        calculated.coerceAtLeast(1000L)
+                    }
+                } else {
+                    rawDurationMs
+                }
+                val endMs = currentTimeMs + durationMs
+                
                 // Match image smart search
                 val matchedImage = findMatchingImageForScene(data, allLibraryImages)
 

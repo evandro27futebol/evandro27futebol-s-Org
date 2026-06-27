@@ -81,6 +81,7 @@ fun UploadScreen(
     val context = LocalContext.current
     var selectedAudioUri by remember { mutableStateOf<Uri?>(null) }
     var selectedAudioName by remember { mutableStateOf<String?>(null) }
+    var selectedAudioDurationMs by remember { mutableStateOf(0L) }
 
     val audioPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -92,7 +93,13 @@ fun UploadScreen(
             val cleanTitle = name.substringBeforeLast(".")
             projectTitle = if (cleanTitle.isNotBlank()) cleanTitle else name
             voiceRecordedText = null // Reset recorded voice
-            narrationText = "Áudio pronto enviado: $name. A inteligência artificial identificou a locução pronta e criará as legendas e cenas dinamicamente sincronizadas com o ritmo e pausas do áudio."
+            val durationMs = getAudioDurationMs(context, uri)
+            selectedAudioDurationMs = durationMs
+            val durationSec = durationMs / 1000
+            val min = durationSec / 60
+            val sec = durationSec % 60
+            val durationStr = String.format("%02d:%02d", min, sec)
+            narrationText = "Áudio pronto enviado: $name (${durationStr}). A inteligência artificial identificou a locução pronta e criará as legendas e cenas dinamicamente sincronizadas com o ritmo e pausas do áudio."
         }
     }
 
@@ -516,11 +523,15 @@ fun UploadScreen(
                 Button(
                     onClick = {
                         if (projectTitle.isNotBlank() && narrationText.isNotBlank()) {
+                            val audioUri = if (selectedAudioSourceTab == 1) selectedAudioUri?.toString() else null
+                            val audioDuration = if (selectedAudioSourceTab == 1) selectedAudioDurationMs else 0L
                             viewModel.createNewProject(
                                 title = projectTitle,
                                 narrationText = narrationText,
                                 templateStyle = selectedStyle,
-                                bgMusic = selectedMusic
+                                bgMusic = selectedMusic,
+                                audioUriString = audioUri,
+                                audioDurationMs = audioDuration
                             )
                         }
                     },
@@ -657,4 +668,29 @@ fun getFileNameFromUri(context: android.content.Context, uri: Uri): String {
     }
     return result ?: "audio_pronto.mp3"
 }
+
+fun getAudioDurationMs(context: android.content.Context, uri: Uri): Long {
+    var duration = 0L
+    try {
+        val retriever = android.media.MediaMetadataRetriever()
+        retriever.setDataSource(context, uri)
+        val time = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+        duration = time?.toLong() ?: 0L
+        retriever.release()
+    } catch (e: Exception) {
+        e.printStackTrace()
+        // Fallback using MediaPlayer
+        try {
+            val mediaPlayer = android.media.MediaPlayer.create(context, uri)
+            if (mediaPlayer != null) {
+                duration = mediaPlayer.duration.toLong()
+                mediaPlayer.release()
+            }
+        } catch (ex: Exception) {
+            ex.printStackTrace()
+        }
+    }
+    return if (duration > 0) duration else 15000L // Default to 15s if failed
+}
+
 

@@ -150,7 +150,14 @@ class ProjectViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun createNewProject(title: String, narrationText: String, templateStyle: String, bgMusic: String) {
+    fun createNewProject(
+        title: String,
+        narrationText: String,
+        templateStyle: String,
+        bgMusic: String,
+        audioUriString: String? = null,
+        audioDurationMs: Long = 0
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             _isGenerating.value = true
             try {
@@ -158,6 +165,8 @@ class ProjectViewModel(application: Application) : AndroidViewModel(application)
                     title = title,
                     narrationText = narrationText,
                     styleTemplate = templateStyle,
+                    audioUriString = audioUriString,
+                    audioDurationMs = audioDurationMs,
                     bgMusicName = bgMusic
                 )
                 val proj = repository.getProjectSync(projectId)
